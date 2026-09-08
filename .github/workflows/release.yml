@@ -1,0 +1,275 @@
+name: Release Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
+      - main
+    paths:
+      - 'pubspec.yaml'
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force release build even if not a major/minor bump (true/false)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check Version & Determine Release
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.version_check.outputs.should_release }}
+      version: ${{ steps.version_check.outputs.version }}
+      tag: ${{ steps.version_check.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version is Major or Minor update
+        id: version_check
+        run: |
+          set -e
+          FORCE="${{ github.event.inputs.force_release }}"
+
+          if [[ "$FORCE" == "true" ]]; then
+            CUR_VER=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}' | cut -d'+' -f1)
+            echo "Force release requested for version $CUR_VER"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=$CUR_VER" >> "$GITHUB_OUTPUT"
+            echo "tag=v$CUR_VER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG_NAME#v}"
+            # Extract major, minor, patch
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3 | cut -d'+' -f1)
+
+            echo "Triggered by tag $TAG_NAME (Major: $MAJOR, Minor: $MINOR, Patch: $PATCH)"
+
+            # Check if it's a major or minor release (patch == 0)
+            if [ "$PATCH" = "0" ]; then
+              echo "✅ Major or minor version release detected!"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
+            else
+              echo "ℹ️ Patch release detected ($TAG_NAME with patch=$PATCH). Skipping automated platform installer release."
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # Triggered by push to master/main
+            echo "Triggered by push to branch with pubspec.yaml changes."
+            NEW_VER=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}' | cut -d'+' -f1)
+
+            # Get previous version from HEAD~1
+            if git rev-parse HEAD~1 >/dev/null 2>&1; then
+              OLD_VER=$(git show HEAD~1:pubspec.yaml 2>/dev/null | grep '^version:' | head -n 1 | awk '{print $2}' | cut -d'+' -f1 || echo "")
+            else
+              OLD_VER=""
+            fi
+
+            echo "Current version: $NEW_VER, Previous version: $OLD_VER"
+
+            NEW_MAJOR=$(echo "$NEW_VER" | cut -d. -f1)
+            NEW_MINOR=$(echo "$NEW_VER" | cut -d. -f2)
+            NEW_PATCH=$(echo "$NEW_VER" | cut -d. -f3 | cut -d'+' -f1)
+
+            OLD_MAJOR=$(echo "$OLD_VER" | cut -d. -f1)
+            OLD_MINOR=$(echo "$OLD_VER" | cut -d. -f2)
+
+            # Determine if major or minor updated
+            if [ -z "$OLD_VER" ] && [ "$NEW_PATCH" = "0" ]; then
+              echo "✅ Initial major/minor release $NEW_VER"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"
+              echo "tag=v$NEW_VER" >> "$GITHUB_OUTPUT"
+            elif [ "$NEW_MAJOR" != "$OLD_MAJOR" ] || [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
+              echo "✅ Major or minor version bump detected: $OLD_VER -> $NEW_VER"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"
+              echo "tag=v$NEW_VER" >> "$GITHUB_OUTPUT"
+            else
+              echo "ℹ️ Version did not undergo a major or minor update ($OLD_VER -> $NEW_VER). Skipping release."
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  build-windows:
+    name: Build Windows Installer Bundle
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Windows Executable
+        run: flutter build windows --release
+
+      - name: Package Windows Bundle into ZIP
+        shell: pwsh
+        run: |
+          $ver = "${{ needs.check-version.outputs.version }}"
+          $zipName = "OpenFantacalcioManager-Windows-x64-v$ver.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath $zipName
+          Write-Host "Created $zipName"
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: OpenFantacalcioManager-Windows-x64-*.zip
+
+  build-macos:
+    name: Build macOS Application Bundle
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
+      - name: Package macOS App into ZIP
+        run: |
+          VER="${{ needs.check-version.outputs.version }}"
+          ZIP_NAME="OpenFantacalcioManager-macOS-v${VER}.zip"
+          cd build/macos/Build/Products/Release
+          zip -r -y "../../../../../${ZIP_NAME}" open_fantacalcio_manager.app
+          cd ../../../../..
+          echo "Created $ZIP_NAME"
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: OpenFantacalcioManager-macOS-*.zip
+
+  build-linux:
+    name: Build Linux Application Bundle
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Linux Bundle
+        run: flutter build linux --release
+
+      - name: Package Linux Bundle into TAR.GZ
+        run: |
+          VER="${{ needs.check-version.outputs.version }}"
+          TAR_NAME="OpenFantacalcioManager-Linux-x64-v${VER}.tar.gz"
+          cd build/linux/x64/release
+          tar -czf "../../../${TAR_NAME}" bundle/
+          cd ../../..
+          echo "Created $TAR_NAME"
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: OpenFantacalcioManager-Linux-x64-*.tar.gz
+
+  publish-release:
+    name: Create GitHub Release
+    needs: [check-version, build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Generate Release Notes
+        run: |
+          VER="${{ needs.check-version.outputs.version }}"
+          TAG="${{ needs.check-version.outputs.tag }}"
+
+          echo "## Open Fantacalcio Manager $TAG" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          dart run tool/bump_version.dart --extract-notes "$VER" >> RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Create or Update GitHub Tag
+        run: |
+          TAG="${{ needs.check-version.outputs.tag }}"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG" || true
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-version.outputs.tag }}
+          name: "Open Fantacalcio Manager ${{ needs.check-version.outputs.tag }}"
+          body_path: RELEASE_NOTES.md
+          files: release-assets/*
+          draft: false
+          prerelease: false

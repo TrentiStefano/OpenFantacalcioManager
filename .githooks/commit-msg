@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Open Fantacalcio Manager - Conventional Commits Hook
+dart run tool/check_commit_msg.dart "$1"

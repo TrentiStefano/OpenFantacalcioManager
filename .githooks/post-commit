@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Open Fantacalcio Manager - Semantic Versioning Auto-Tag Hook
+LAST_MSG=$(git log -1 --pretty=%B | head -n 1)
+
+if echo "$LAST_MSG" | grep -qE '^chore\(release\):\s*v?[0-9]+\.[0-9]+\.[0-9]+'; then
+  VERSION=$(echo "$LAST_MSG" | sed -E 's/^chore\(release\):\s*v?([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+  TAG="v$VERSION"
+  if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+    echo "🏷️ Automatically creating git tag $TAG for release commit..."
+    git tag -a "$TAG" -m "Release $TAG"
+    echo "✅ Tag $TAG created successfully."
+  fi
+fi
