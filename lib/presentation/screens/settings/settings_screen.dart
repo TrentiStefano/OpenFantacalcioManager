@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/localization/app_localizations.dart';
@@ -9,6 +10,7 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   void _confirmResetSeason(BuildContext context, WidgetRef ref) {
+    HapticFeedback.heavyImpact();
     final l10n = AppLocalizations.of(context);
 
     showDialog(
@@ -30,6 +32,7 @@ class SettingsScreen extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
+              HapticFeedback.heavyImpact();
               await ref.read(playersProvider.notifier).resetSeason();
               if (context.mounted) {
                 Navigator.pop(ctx);
@@ -51,77 +54,165 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final currentLocale = ref.watch(localeProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.translate('nav_settings'),
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
 
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Aspetto & Lingua', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-
-                  // Language Switcher
-                  ListTile(
-                    leading: const Icon(Icons.language, color: AppColors.primary),
-                    title: Text(l10n.translate('language')),
-                    subtitle: Text(currentLocale.languageCode == 'it' ? 'Italiano' : 'English'),
-                    trailing: SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'it', label: Text('Italiano')),
-                        ButtonSegment(value: 'en', label: Text('English')),
-                      ],
-                      selected: {currentLocale.languageCode},
-                      onSelectionChanged: (set) {
-                        ref.read(localeProvider.notifier).setLocale(Locale(set.first));
-                      },
-                    ),
-                  ),
-                  const Divider(),
-
-                  // Theme Switcher
-                  ListTile(
-                    leading: Icon(
-                      themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
-                      color: AppColors.primary,
-                    ),
-                    title: Text(l10n.translate('theme')),
-                    subtitle: Text(themeMode == ThemeMode.dark
-                        ? l10n.translate('theme_dark')
-                        : l10n.translate('theme_light')),
-                    trailing: SegmentedButton<ThemeMode>(
-                      segments: [
-                        ButtonSegment(
-                          value: ThemeMode.light,
-                          label: Text(l10n.translate('theme_light')),
-                          icon: const Icon(Icons.light_mode, size: 16),
-                        ),
-                        ButtonSegment(
-                          value: ThemeMode.dark,
-                          label: Text(l10n.translate('theme_dark')),
-                          icon: const Icon(Icons.dark_mode, size: 16),
-                        ),
-                      ],
-                      selected: {themeMode},
-                      onSelectionChanged: (set) {
-                        ref.read(themeModeProvider.notifier).setThemeMode(set.first);
-                      },
-                    ),
-                  ),
-                ],
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.translate('nav_settings'),
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
               ),
-            ),
-          ),
+              const SizedBox(height: 20),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Aspetto & Lingua', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+
+                      // Language Switcher
+                      if (isMobile) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.language, color: AppColors.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(l10n.translate('language'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                  Text(currentLocale.languageCode == 'it' ? 'Italiano' : 'English', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: 'it', label: Text('Italiano')),
+                              ButtonSegment(value: 'en', label: Text('English')),
+                            ],
+                            selected: {currentLocale.languageCode},
+                            onSelectionChanged: (set) {
+                              HapticFeedback.selectionClick();
+                              ref.read(localeProvider.notifier).setLocale(Locale(set.first));
+                            },
+                          ),
+                        ),
+                      ] else ...[
+                        ListTile(
+                          leading: const Icon(Icons.language, color: AppColors.primary),
+                          title: Text(l10n.translate('language')),
+                          subtitle: Text(currentLocale.languageCode == 'it' ? 'Italiano' : 'English'),
+                          trailing: SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: 'it', label: Text('Italiano')),
+                              ButtonSegment(value: 'en', label: Text('English')),
+                            ],
+                            selected: {currentLocale.languageCode},
+                            onSelectionChanged: (set) {
+                              HapticFeedback.selectionClick();
+                              ref.read(localeProvider.notifier).setLocale(Locale(set.first));
+                            },
+                          ),
+                        ),
+                      ],
+                      const Divider(height: 32),
+
+                      // Theme Switcher
+                      if (isMobile) ...[
+                        Row(
+                          children: [
+                            Icon(
+                              themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(l10n.translate('theme'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                  Text(
+                                    themeMode == ThemeMode.dark
+                                        ? l10n.translate('theme_dark')
+                                        : l10n.translate('theme_light'),
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<ThemeMode>(
+                            segments: [
+                              ButtonSegment(
+                                value: ThemeMode.light,
+                                label: Text(l10n.translate('theme_light')),
+                                icon: const Icon(Icons.light_mode, size: 16),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.dark,
+                                label: Text(l10n.translate('theme_dark')),
+                                icon: const Icon(Icons.dark_mode, size: 16),
+                              ),
+                            ],
+                            selected: {themeMode},
+                            onSelectionChanged: (set) {
+                              HapticFeedback.selectionClick();
+                              ref.read(themeModeProvider.notifier).setThemeMode(set.first);
+                            },
+                          ),
+                        ),
+                      ] else ...[
+                        ListTile(
+                          leading: Icon(
+                            themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                            color: AppColors.primary,
+                          ),
+                          title: Text(l10n.translate('theme')),
+                          subtitle: Text(themeMode == ThemeMode.dark
+                              ? l10n.translate('theme_dark')
+                              : l10n.translate('theme_light')),
+                          trailing: SegmentedButton<ThemeMode>(
+                            segments: [
+                              ButtonSegment(
+                                value: ThemeMode.light,
+                                label: Text(l10n.translate('theme_light')),
+                                icon: const Icon(Icons.light_mode, size: 16),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.dark,
+                                label: Text(l10n.translate('theme_dark')),
+                                icon: const Icon(Icons.dark_mode, size: 16),
+                              ),
+                            ],
+                            selected: {themeMode},
+                            onSelectionChanged: (set) {
+                              HapticFeedback.selectionClick();
+                              ref.read(themeModeProvider.notifier).setThemeMode(set.first);
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
           const SizedBox(height: 24),
 
           // Danger Zone
@@ -167,5 +258,7 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
-  }
+  },
+);
+}
 }

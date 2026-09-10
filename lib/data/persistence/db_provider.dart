@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class DbProvider {
   static final DbProvider instance = DbProvider._();
@@ -17,14 +17,22 @@ class DbProvider {
   }
 
   Future<Database> _initDatabase() async {
-    // Check if running on desktop (Windows, macOS, Linux)
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
+    final String dbPath;
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+      dbPath = 'open_fantacalcio_manager.db';
+    } else {
+      // Check if running on desktop (Windows, macOS, Linux)
+      if (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
 
-    final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(docsDir.path, 'open_fantacalcio_manager.db');
+      final docsDir = await getApplicationDocumentsDirectory();
+      dbPath = p.join(docsDir.path, 'open_fantacalcio_manager.db');
+    }
 
     return await openDatabase(
       dbPath,

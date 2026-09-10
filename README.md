@@ -66,9 +66,14 @@ It digitizes and enhances traditional Google Sheets workflows, eliminating sprea
 
 ### 1. Windows Desktop
 - **Requirements**: Visual Studio 2022 / 2026 with the "Desktop development with C++" workload installed.
-- **Run**:
+- **Run Native Desktop Application**:
   ```bash
   flutter run -d windows
+  ```
+  *(Launches the standard native Windows desktop application with sidebar `NavigationRail`, full tables, and desktop layouts).*
+- **Run with iPhone Device Preview**:
+  ```bash
+  flutter run -d windows --dart-define=PREVIEW=true
   ```
 - **Build Release Executable**:
   ```bash
@@ -124,6 +129,59 @@ It digitizes and enhances traditional Google Sheets workflows, eliminating sprea
   ```bash
   flutter build ipa
   ```
+
+### 6. Web & Mobile Device Preview
+- **Run in Chrome with iPhone Preview**:
+  ```bash
+  flutter run -d chrome
+  ```
+  *(Powered by `sqflite_common_ffi_web` SQLite WASM and `device_preview`).*
+- **Run Full Web App (Without Device Frame)**:
+  ```bash
+  flutter run -d chrome --dart-define=PREVIEW=false
+  ```
+- **Build Web Release**:
+  ```bash
+  flutter build web
+  ```
+
+---
+
+## 📱 Testing the iPhone & iPad UI on Windows
+
+Even without a Mac, you can thoroughly test the touch-friendly mobile layouts, bottom navigation bar, player cards, Cupertino bottom sheets, and live auction bid steppers on Windows:
+
+### Method A: Native Windows App vs. iPhone Frame
+1. **Normal Native Windows Desktop**:
+   ```bash
+   flutter run -d windows
+   ```
+   Launches the full desktop interface.
+2. **Windows with Interactive iPhone Frame**:
+   ```bash
+   flutter run -d windows --dart-define=PREVIEW=true
+   ```
+   Renders the interactive iPhone frame directly on your Windows desktop.
+
+### Method B: Chrome with Interactive Device Preview
+```bash
+flutter run -d chrome
+```
+- Opens Google Chrome with an **iPhone 13 Pro Max** frame by default.
+- Use the bottom toolbar to:
+  - **Switch devices**: Switch between iPhone and **iPad** (to view the layout expand from bottom bar into `NavigationRail`).
+  - **Rotate orientation**: Test portrait and landscape modes.
+  - **Toggle Frame ON/OFF**: Click the gear icon or toggle to instantly switch between the phone frame and the full desktop UI without restarting.
+
+### Method C: Test Live on Physical iPhone / iPad via Wi-Fi
+1. Start the local server binding to all network interfaces:
+   ```bash
+   flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
+   ```
+2. Find your PC's IP address (`ipconfig` $\rightarrow$ IPv4 Address, e.g. `192.168.1.50`).
+3. Open **Safari** on your iPhone or iPad connected to the same Wi-Fi and navigate to:
+   `http://192.168.1.50:8080`
+4. Tap **Share $\rightarrow$ "Add to Home Screen"** to test as a full-screen, standalone iOS app with native gestures!
 
 ---
 

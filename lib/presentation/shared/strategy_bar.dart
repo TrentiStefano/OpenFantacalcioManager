@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/localization/app_localizations.dart';
@@ -140,7 +141,10 @@ class StrategyBar extends ConsumerWidget {
           }).toList();
 
           final balanceWidget = InkWell(
-            onTap: onOpenStrategy,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onOpenStrategy?.call();
+            },
             borderRadius: BorderRadius.circular(8),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -223,6 +227,7 @@ class StrategyBar extends ConsumerWidget {
                 const SizedBox(height: 6),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   child: Row(
                     children: [
                       for (int i = 0; i < roleChips.length; i++) ...[

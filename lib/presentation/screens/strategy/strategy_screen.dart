@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_tiers.dart';
@@ -135,268 +136,463 @@ class _RoleStrategyView extends ConsumerWidget {
     final roleColor = AppColors.getRoleColor(role);
     final roleName = AppLocalizations.of(context).translate('role_$role');
 
-    return Column(
-      children: [
-        // Role strategy summary banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: roleColor.withValues(alpha: isDark ? 0.12 : 0.06),
-            border: Border(
-              bottom: BorderSide(
-                color: roleColor.withValues(alpha: 0.2),
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: roleColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  role,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '$roleName: ',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              Text(
-                'Target: ${rSum?.allocatedBudget ?? 0} cr (${(settings.targetPercentages[role] ?? 0.0).toStringAsFixed(1)}%)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text('•', style: TextStyle(color: Colors.grey)),
-              const SizedBox(width: 12),
-              Text(
-                'Spesi: ${rSum?.spentBudget ?? 0} cr (${rSum?.acquiredCount ?? 0}/${rSum?.totalSlots ?? 0} slot)',
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(width: 12),
-              const Text('•', style: TextStyle(color: Colors.grey)),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Rimasti da spendere: ', style: TextStyle(fontSize: 12)),
-                  Text(
-                    '${rSum?.remainingBudget ?? 0} cr',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: (rSum?.remainingBudget ?? 0) < 0 ? Colors.red : AppColors.primary,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 750;
+
+        return Column(
+          children: [
+            // Role strategy summary banner
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: roleColor.withValues(alpha: isDark ? 0.12 : 0.06),
+                border: Border(
+                  bottom: BorderSide(
+                    color: roleColor.withValues(alpha: 0.2),
                   ),
-                ],
+                ),
               ),
-              const Spacer(),
-              if (rSum != null && (rSum.isCompleted || rSum.roleDelta != 0)) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: rSum.roleDelta > 0
-                        ? AppColors.accent.withValues(alpha: 0.15)
-                        : (rSum.roleDelta < 0
-                            ? Colors.red.withValues(alpha: 0.15)
-                            : Colors.grey.withValues(alpha: 0.1)),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: rSum.roleDelta > 0
-                          ? AppColors.accent.withValues(alpha: 0.3)
-                          : (rSum.roleDelta < 0 ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        rSum.roleDelta > 0
-                            ? Icons.savings_outlined
-                            : (rSum.roleDelta < 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline),
-                        size: 14,
-                        color: rSum.roleDelta > 0
-                            ? AppColors.accent
-                            : (rSum.roleDelta < 0 ? Colors.red : Colors.grey),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        rSum.roleDelta > 0
-                            ? 'Risparmio: ${rSum.formattedDelta}'
-                            : (rSum.roleDelta < 0
-                                ? 'Sforamento: ${rSum.formattedDelta}'
-                                : 'In budget'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: rSum.roleDelta > 0
-                              ? AppColors.accent
-                              : (rSum.roleDelta < 0 ? Colors.red : Colors.grey),
+              child: isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: roleColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    role,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  roleName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            if (rSum != null && (rSum.isCompleted || rSum.roleDelta != 0)) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: rSum.roleDelta > 0
+                                      ? AppColors.accent.withValues(alpha: 0.15)
+                                      : (rSum.roleDelta < 0
+                                          ? Colors.red.withValues(alpha: 0.15)
+                                          : Colors.grey.withValues(alpha: 0.1)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  rSum.roleDelta > 0
+                                      ? 'Extra: ${rSum.formattedDelta}'
+                                      : (rSum.roleDelta < 0 ? 'Sforamento: ${rSum.formattedDelta}' : 'In budget'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: rSum.roleDelta > 0 ? AppColors.accent : (rSum.roleDelta < 0 ? Colors.red : Colors.grey),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        // Role strategy table header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          color: isDark ? const Color(0xFF161F30) : const Color(0xFFF1F5F9),
-          child: const Row(
-            children: [
-              SizedBox(width: 34), // Star
-              Expanded(flex: 3, child: Text('CALCIATORE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('SQUADRA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 1, child: Text('FVM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('% BUDGET', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('BASE ASTA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('FASCIA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('PREZZO OBIETTIVO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(flex: 3, child: Text('NOTE STRATEGICHE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child: rolePlayers.isEmpty
-              ? const Center(child: Text('Nessun giocatore caricato per questo ruolo.'))
-              : ListView.separated(
-                  itemCount: rolePlayers.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  ),
-                  itemBuilder: (context, index) {
-                    final player = rolePlayers[index];
-                    final baseValue = player.calculateBaseValue(settings.initialBudget);
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: Row(
-                        children: [
-                          // Favorite star
-                          SizedBox(
-                            width: 34,
-                            child: IconButton(
-                              icon: Icon(
-                                player.isFavorite ? Icons.star : Icons.star_border,
-                                color: player.isFavorite ? AppColors.starActive : Colors.grey[400],
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                ref.read(playersProvider.notifier).toggleFavorite(player.id);
-                              },
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Target: ${rSum?.allocatedBudget ?? 0} cr (${(settings.targetPercentages[role] ?? 0.0).toStringAsFixed(0)}%)',
+                              style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[700]),
                             ),
-                          ),
-                          // Name
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              player.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            Text(
+                              'Spesi: ${rSum?.spentBudget ?? 0} cr (${rSum?.acquiredCount ?? 0}/${rSum?.totalSlots ?? 0})',
+                              style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[700]),
                             ),
-                          ),
-                          // Team
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              player.team,
+                            Text(
+                              'Rimasti: ${rSum?.remainingBudget ?? 0} cr',
                               style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                          ),
-                          // FVM
-                          Expanded(
-                            flex: 1,
-                            child: Text(
-                              (settings.isMantra && player.fvmM > 0 ? player.fvmM : player.fvm).toStringAsFixed(0),
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
-                          ),
-                          // % Budget (interactive inline cell)
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: EditableBudgetCell(
-                                budgetPercent: player.budgetPercent,
-                                onPercentChanged: (newPct) {
-                                  ref.read(playersProvider.notifier).updateBudgetPercent(player.id, newPct);
-                                },
-                              ),
-                            ),
-                          ),
-                          // Base auction value
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              '$baseValue cr',
-                              style: TextStyle(
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
+                                color: (rSum?.remainingBudget ?? 0) < 0 ? Colors.red : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: roleColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            role,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '$roleName: ',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        Text(
+                          'Target: ${rSum?.allocatedBudget ?? 0} cr (${(settings.targetPercentages[role] ?? 0.0).toStringAsFixed(1)}%)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('•', style: TextStyle(color: Colors.grey)),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Spesi: ${rSum?.spentBudget ?? 0} cr (${rSum?.acquiredCount ?? 0}/${rSum?.totalSlots ?? 0} slot)',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('•', style: TextStyle(color: Colors.grey)),
+                        const SizedBox(width: 12),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Rimasti da spendere: ', style: TextStyle(fontSize: 12)),
+                            Text(
+                              '${rSum?.remainingBudget ?? 0} cr',
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: baseValue > 0 ? AppColors.primary : Colors.grey,
+                                fontWeight: FontWeight.w800,
+                                color: (rSum?.remainingBudget ?? 0) < 0 ? Colors.red : AppColors.primary,
                               ),
                             ),
-                          ),
-                          // Tier
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: TierBadge(
-                                tier: player.tier,
-                                availableTiers: roleTiers,
-                                onTierChanged: (newTier) {
-                                  ref.read(playersProvider.notifier).updateTier(player.id, newTier);
-                                },
+                          ],
+                        ),
+                        const Spacer(),
+                        if (rSum != null && (rSum.isCompleted || rSum.roleDelta != 0)) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: rSum.roleDelta > 0
+                                  ? AppColors.accent.withValues(alpha: 0.15)
+                                  : (rSum.roleDelta < 0
+                                      ? Colors.red.withValues(alpha: 0.15)
+                                      : Colors.grey.withValues(alpha: 0.1)),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: rSum.roleDelta > 0
+                                    ? AppColors.accent.withValues(alpha: 0.3)
+                                    : (rSum.roleDelta < 0 ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2)),
                               ),
                             ),
-                          ),
-                          // Prezzo Obiettivo (Target Price)
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _TargetPriceInput(
-                                player: player,
-                                onTargetPriceChanged: (val) {
-                                  ref.read(playersProvider.notifier).updateTargetPrice(player.id, val);
-                                },
-                              ),
-                            ),
-                          ),
-                          // Note (Notes)
-                          Expanded(
-                            flex: 3,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _NotesInput(
-                                player: player,
-                                onNotesChanged: (val) {
-                                  ref.read(playersProvider.notifier).updateNotes(player.id, val);
-                                },
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  rSum.roleDelta > 0
+                                      ? Icons.savings_outlined
+                                      : (rSum.roleDelta < 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline),
+                                  size: 14,
+                                  color: rSum.roleDelta > 0
+                                      ? AppColors.accent
+                                      : (rSum.roleDelta < 0 ? Colors.red : Colors.grey),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  rSum.roleDelta > 0
+                                      ? 'Risparmio: ${rSum.formattedDelta}'
+                                      : (rSum.roleDelta < 0
+                                          ? 'Sforamento: ${rSum.formattedDelta}'
+                                          : 'In budget'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: rSum.roleDelta > 0
+                                        ? AppColors.accent
+                                        : (rSum.roleDelta < 0 ? Colors.red : Colors.grey),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    );
-                  },
+                      ],
+                    ),
+            ),
+            // Role strategy table header (Desktop/Tablet only)
+            if (!isMobile)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                color: isDark ? const Color(0xFF161F30) : const Color(0xFFF1F5F9),
+                child: const Row(
+                  children: [
+                    SizedBox(width: 34), // Star
+                    Expanded(flex: 3, child: Text('CALCIATORE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 2, child: Text('SQUADRA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 1, child: Text('FVM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 2, child: Text('% BUDGET', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 2, child: Text('BASE ASTA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 2, child: Text('FASCIA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 2, child: Text('PREZZO OBIETTIVO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Expanded(flex: 3, child: Text('NOTE STRATEGICHE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                  ],
                 ),
-        ),
-      ],
+              ),
+
+            Expanded(
+              child: rolePlayers.isEmpty
+                  ? const Center(child: Text('Nessun giocatore caricato per questo ruolo.'))
+                  : ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: rolePlayers.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                      ),
+                      itemBuilder: (context, index) {
+                        final player = rolePlayers[index];
+                        final baseValue = player.calculateBaseValue(settings.initialBudget);
+
+                        // Mobile View Card (< 750px)
+                        if (isMobile) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: Icon(
+                                        player.isFavorite ? Icons.star : Icons.star_border,
+                                        color: player.isFavorite ? AppColors.starActive : Colors.grey[400],
+                                        size: 22,
+                                      ),
+                                      onPressed: () {
+                                        HapticFeedback.selectionClick();
+                                        ref.read(playersProvider.notifier).toggleFavorite(player.id);
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            player.name,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            player.team,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    TierBadge(
+                                      tier: player.tier,
+                                      availableTiers: roleTiers,
+                                      onTierChanged: (newTier) {
+                                        ref.read(playersProvider.notifier).updateTier(player.id, newTier);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const SizedBox(width: 30),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'FVM ${(settings.isMantra && player.fvmM > 0 ? player.fvmM : player.fvm).toStringAsFixed(0)}',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: baseValue > 0 ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Base $baseValue cr',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: baseValue > 0 ? AppColors.primary : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    EditableBudgetCell(
+                                      budgetPercent: player.budgetPercent,
+                                      onPercentChanged: (newPct) {
+                                        ref.read(playersProvider.notifier).updateBudgetPercent(player.id, newPct);
+                                      },
+                                    ),
+                                    const Spacer(),
+                                    SizedBox(
+                                      width: 85,
+                                      child: _TargetPriceInput(
+                                        player: player,
+                                        onTargetPriceChanged: (val) {
+                                          ref.read(playersProvider.notifier).updateTargetPrice(player.id, val);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (player.notes.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 30.0),
+                                    child: _NotesInput(
+                                      player: player,
+                                      onNotesChanged: (val) {
+                                        ref.read(playersProvider.notifier).updateNotes(player.id, val);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }
+
+                        // Desktop / Tablet Row (>= 750px)
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 34,
+                                child: IconButton(
+                                  icon: Icon(
+                                    player.isFavorite ? Icons.star : Icons.star_border,
+                                    color: player.isFavorite ? AppColors.starActive : Colors.grey[400],
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    HapticFeedback.selectionClick();
+                                    ref.read(playersProvider.notifier).toggleFavorite(player.id);
+                                  },
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  player.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  player.team,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  (settings.isMantra && player.fvmM > 0 ? player.fvmM : player.fvm).toStringAsFixed(0),
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: EditableBudgetCell(
+                                    budgetPercent: player.budgetPercent,
+                                    onPercentChanged: (newPct) {
+                                      ref.read(playersProvider.notifier).updateBudgetPercent(player.id, newPct);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  '$baseValue cr',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: baseValue > 0 ? AppColors.primary : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TierBadge(
+                                    tier: player.tier,
+                                    availableTiers: roleTiers,
+                                    onTierChanged: (newTier) {
+                                      ref.read(playersProvider.notifier).updateTier(player.id, newTier);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _TargetPriceInput(
+                                    player: player,
+                                    onTargetPriceChanged: (val) {
+                                      ref.read(playersProvider.notifier).updateTargetPrice(player.id, val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _NotesInput(
+                                    player: player,
+                                    onNotesChanged: (val) {
+                                      ref.read(playersProvider.notifier).updateNotes(player.id, val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

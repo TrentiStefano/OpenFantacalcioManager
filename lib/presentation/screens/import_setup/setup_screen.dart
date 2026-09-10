@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/localization/app_localizations.dart';
@@ -77,6 +79,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   void _resetStrategyToDefault() {
+    HapticFeedback.mediumImpact();
     final budget = int.tryParse(_budgetController.text) ?? 600;
     for (final entry in LeagueSettings.defaultTargetPercentages.entries) {
       final role = entry.key;
@@ -102,9 +105,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
+        final bytes = file.bytes ??
+            (!kIsWeb && file.path != null ? await File(file.path!).readAsBytes() : null);
         if (bytes != null) {
           final importRes = await ref.read(playersProvider.notifier).importFile(bytes, file.name);
+          HapticFeedback.mediumImpact();
           setState(() {
             _statusMessage = 'Importati con successo ${importRes.totalImported} giocatori '
                 '(foglio "${importRes.sheetNameUsed}", ${importRes.cedutiCount} ceduti).';
@@ -132,6 +137,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       final importRes = await ref.read(playersProvider.notifier).loadFixtureFromAsset(
             'spreadsheets/Quotazioni_Fantacalcio_Stagione_2026_27.xlsx',
           );
+      HapticFeedback.mediumImpact();
       setState(() {
         _statusMessage = 'Caricato fixture 2026/27: ${importRes.totalImported} giocatori '
             '(${importRes.cedutiCount} ceduti rilevati).';
@@ -148,6 +154,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   Future<void> _saveSettings() async {
+    HapticFeedback.lightImpact();
     final budget = int.tryParse(_budgetController.text) ?? 600;
     final slots = <String, int>{};
     final allocations = <String, int>{};
@@ -344,20 +351,22 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Parametri Asta & Rosa',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 650;
 
-                      // Budget Iniziale & Mantra Mode
-                      Row(
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
+                          const Text(
+                            'Parametri Asta & Rosa',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Budget Iniziale & Mantra Mode
+                          if (isMobile) ...[
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -365,205 +374,384 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                 ),
                                 const SizedBox(height: 8),
-                                SizedBox(
-                                  width: 200,
-                                  child: TextField(
-                                    controller: _budgetController,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      prefixIcon: Icon(Icons.monetization_on_outlined),
-                                      suffixText: 'cr',
-                                    ),
+                                TextField(
+                                  controller: _budgetController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.monetization_on_outlined),
+                                    suffixText: 'cr',
                                   ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Modalità di Gioco',
+                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    ChoiceChip(
+                                      label: Text(l10n.translate('classic_mode')),
+                                      selected: !settings.isMantra,
+                                      onSelected: (val) {
+                                        if (val) {
+                                          HapticFeedback.selectionClick();
+                                          ref.read(settingsProvider.notifier).toggleMantra(false);
+                                        }
+                                      },
+                                    ),
+                                    ChoiceChip(
+                                      label: Text(l10n.translate('mantra_mode')),
+                                      selected: settings.isMantra,
+                                      onSelected: (val) {
+                                        if (val) {
+                                          HapticFeedback.selectionClick();
+                                          ref.read(settingsProvider.notifier).toggleMantra(true);
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Modalità di Gioco',
-                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  ChoiceChip(
-                                    label: Text(l10n.translate('classic_mode')),
-                                    selected: !settings.isMantra,
-                                    onSelected: (val) {
-                                      if (val) {
-                                        ref.read(settingsProvider.notifier).toggleMantra(false);
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ChoiceChip(
-                                    label: Text(l10n.translate('mantra_mode')),
-                                    selected: settings.isMantra,
-                                    onSelected: (val) {
-                                      if (val) {
-                                        ref.read(settingsProvider.notifier).toggleMantra(true);
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 20),
-
-                      // Slot per Ruolo
-                      Text(
-                        l10n.translate('slots_per_role'),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: ['P', 'D', 'C', 'A'].map((role) {
-                          final roleName = l10n.translate('role_$role');
-                          final color = AppColors.getRoleColor(role);
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                          ] else ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                                      ),
-                                      const SizedBox(width: 6),
                                       Text(
-                                        roleName,
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                        l10n.translate('budget_credits'),
+                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        width: 200,
+                                        child: TextField(
+                                          controller: _budgetController,
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            prefixIcon: Icon(Icons.monetization_on_outlined),
+                                            suffixText: 'cr',
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
-                                  TextField(
-                                    controller: _slotControllers[role],
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      suffixText: 'slot',
-                                      suffixStyle: const TextStyle(fontSize: 11),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Modalità di Gioco',
+                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        ChoiceChip(
+                                          label: Text(l10n.translate('classic_mode')),
+                                          selected: !settings.isMantra,
+                                          onSelected: (val) {
+                                            if (val) {
+                                              HapticFeedback.selectionClick();
+                                              ref.read(settingsProvider.notifier).toggleMantra(false);
+                                            }
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ChoiceChip(
+                                          label: Text(l10n.translate('mantra_mode')),
+                                          selected: settings.isMantra,
+                                          onSelected: (val) {
+                                            if (val) {
+                                              HapticFeedback.selectionClick();
+                                              ref.read(settingsProvider.notifier).toggleMantra(true);
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          const Divider(),
+                          const SizedBox(height: 20),
+
+                          // Slot per Ruolo
+                          Text(
+                            l10n.translate('slots_per_role'),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isMobile) ...[
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 2.1,
+                              children: ['P', 'D', 'C', 'A'].map((role) {
+                                final roleName = l10n.translate('role_$role');
+                                final color = AppColors.getRoleColor(role);
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          roleName,
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _slotControllers[role],
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          suffixText: 'slot',
+                                          suffixStyle: TextStyle(fontSize: 11),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ] else ...[
+                            Row(
+                              children: ['P', 'D', 'C', 'A'].map((role) {
+                                final roleName = l10n.translate('role_$role');
+                                final color = AppColors.getRoleColor(role);
+                                return Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              roleName,
+                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: _slotControllers[role],
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            suffixText: 'slot',
+                                            suffixStyle: TextStyle(fontSize: 11),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+
+                          // Strategia & Budget Allocato per Ruolo
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 12,
+                            runSpacing: 8,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.translate('strategy_target_title'),
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Base: P 6% • D 16% • C 26% • A 52%',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
                                 ],
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Strategia & Budget Allocato per Ruolo
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.translate('strategy_target_title'),
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'Base: P 6% • D 16% • C 26% • A 52%',
-                                style: TextStyle(fontSize: 11, color: Colors.grey),
+                              OutlinedButton.icon(
+                                onPressed: _resetStrategyToDefault,
+                                icon: const Icon(Icons.restart_alt, size: 14),
+                                label: Text(
+                                  l10n.translate('reset_default_strategy'),
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                               ),
                             ],
                           ),
-                          OutlinedButton.icon(
-                            onPressed: _resetStrategyToDefault,
-                            icon: const Icon(Icons.restart_alt, size: 14),
-                            label: Text(
-                              l10n.translate('reset_default_strategy'),
-                              style: const TextStyle(fontSize: 11),
+                          const SizedBox(height: 12),
+                          if (isMobile) ...[
+                            GridView.count(
+                              crossAxisCount: constraints.maxWidth < 450 ? 1 : 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: constraints.maxWidth < 450 ? 3.5 : 2.0,
+                              children: ['P', 'D', 'C', 'A'].map((role) {
+                                final roleName = l10n.translate('role_$role');
+                                final color = AppColors.getRoleColor(role);
+                                return Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 10,
+                                            height: 10,
+                                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            roleName,
+                                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _percentControllers[role],
+                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                              onChanged: (_) => _onPercentChanged(role),
+                                              decoration: const InputDecoration(
+                                                suffixText: '%',
+                                                suffixStyle: TextStyle(fontSize: 11),
+                                                isDense: true,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _allocationControllers[role],
+                                              keyboardType: TextInputType.number,
+                                              onChanged: (_) => _onAllocationChanged(role),
+                                              decoration: const InputDecoration(
+                                                suffixText: 'cr',
+                                                suffixStyle: TextStyle(fontSize: 11),
+                                                isDense: true,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
                             ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              visualDensity: VisualDensity.compact,
+                          ] else ...[
+                            Row(
+                              children: ['P', 'D', 'C', 'A'].map((role) {
+                                final roleName = l10n.translate('role_$role');
+                                final color = AppColors.getRoleColor(role);
+                                return Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              roleName,
+                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextField(
+                                                controller: _percentControllers[role],
+                                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                                onChanged: (_) => _onPercentChanged(role),
+                                                decoration: const InputDecoration(
+                                                  suffixText: '%',
+                                                  suffixStyle: TextStyle(fontSize: 11),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: TextField(
+                                                controller: _allocationControllers[role],
+                                                keyboardType: TextInputType.number,
+                                                onChanged: (_) => _onAllocationChanged(role),
+                                                decoration: const InputDecoration(
+                                                  suffixText: 'cr',
+                                                  suffixStyle: TextStyle(fontSize: 11),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                             ),
+                          ],
+                          const SizedBox(height: 28),
+
+                          ElevatedButton.icon(
+                            onPressed: _saveSettings,
+                            icon: const Icon(Icons.save),
+                            label: Text(l10n.translate('save_settings')),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: ['P', 'D', 'C', 'A'].map((role) {
-                          final roleName = l10n.translate('role_$role');
-                          final color = AppColors.getRoleColor(role);
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        roleName,
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _percentControllers[role],
-                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                          onChanged: (_) => _onPercentChanged(role),
-                                          decoration: const InputDecoration(
-                                            suffixText: '%',
-                                            suffixStyle: TextStyle(fontSize: 11),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _allocationControllers[role],
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (_) => _onAllocationChanged(role),
-                                          decoration: const InputDecoration(
-                                            suffixText: 'cr',
-                                            suffixStyle: TextStyle(fontSize: 11),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 28),
-
-                      ElevatedButton.icon(
-                        onPressed: _saveSettings,
-                        icon: const Icon(Icons.save),
-                        label: Text(l10n.translate('save_settings')),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),
