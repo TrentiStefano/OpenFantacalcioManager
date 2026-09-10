@@ -20,6 +20,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _budgetController = TextEditingController();
   final Map<String, TextEditingController> _slotControllers = {};
   final Map<String, TextEditingController> _allocationControllers = {};
+  final Map<String, TextEditingController> _percentControllers = {};
   bool _initialized = false;
   bool _isLoading = false;
   String? _statusMessage;
@@ -30,6 +31,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     for (final role in ['P', 'D', 'C', 'A']) {
       _slotControllers[role] = TextEditingController();
       _allocationControllers[role] = TextEditingController();
+      _percentControllers[role] = TextEditingController();
     }
   }
 
@@ -42,6 +44,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     for (final c in _allocationControllers.values) {
       c.dispose();
     }
+    for (final c in _percentControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -51,8 +56,35 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     for (final role in ['P', 'D', 'C', 'A']) {
       _slotControllers[role]?.text = (settings.slots[role] ?? 0).toString();
       _allocationControllers[role]?.text = (settings.budgetAllocations[role] ?? 0).toString();
+      _percentControllers[role]?.text = (settings.targetPercentages[role] ?? 0.0).toStringAsFixed(0);
     }
     _initialized = true;
+  }
+
+  void _onPercentChanged(String role) {
+    final budget = int.tryParse(_budgetController.text) ?? 600;
+    final pct = double.tryParse(_percentControllers[role]?.text ?? '') ?? 0.0;
+    final cr = ((pct / 100.0) * budget).round();
+    _allocationControllers[role]?.text = cr.toString();
+  }
+
+  void _onAllocationChanged(String role) {
+    final budget = int.tryParse(_budgetController.text) ?? 600;
+    if (budget <= 0) return;
+    final cr = int.tryParse(_allocationControllers[role]?.text ?? '') ?? 0;
+    final pct = (cr / budget) * 100.0;
+    _percentControllers[role]?.text = pct.toStringAsFixed(0);
+  }
+
+  void _resetStrategyToDefault() {
+    final budget = int.tryParse(_budgetController.text) ?? 600;
+    for (final entry in LeagueSettings.defaultTargetPercentages.entries) {
+      final role = entry.key;
+      final pct = entry.value;
+      _percentControllers[role]?.text = pct.toStringAsFixed(0);
+      _allocationControllers[role]?.text = ((pct / 100.0) * budget).round().toString();
+    }
+    setState(() {});
   }
 
   Future<void> _pickAndImportFile() async {
@@ -119,10 +151,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final budget = int.tryParse(_budgetController.text) ?? 600;
     final slots = <String, int>{};
     final allocations = <String, int>{};
+    final percentages = <String, double>{};
 
     for (final role in ['P', 'D', 'C', 'A']) {
       slots[role] = int.tryParse(_slotControllers[role]?.text ?? '') ?? 0;
       allocations[role] = int.tryParse(_allocationControllers[role]?.text ?? '') ?? 0;
+      percentages[role] = double.tryParse(_percentControllers[role]?.text ?? '') ?? 0.0;
     }
 
     final currentSettings = ref.read(settingsProvider).value ?? const LeagueSettings();
@@ -130,6 +164,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       initialBudget: budget,
       slots: slots,
       budgetAllocations: allocations,
+      targetPercentages: percentages,
     );
 
     await ref.read(settingsProvider.notifier).updateSettings(updated);
@@ -430,10 +465,37 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Budget Allocato per Ruolo
-                      Text(
-                        l10n.translate('allocations_per_role'),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      // Strategia & Budget Allocato per Ruolo
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.translate('strategy_target_title'),
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Base: P 6% • D 16% • C 26% • A 52%',
+                                style: TextStyle(fontSize: 11, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _resetStrategyToDefault,
+                            icon: const Icon(Icons.restart_alt, size: 14),
+                            label: Text(
+                              l10n.translate('reset_default_strategy'),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -461,13 +523,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 6),
-                                  TextField(
-                                    controller: _allocationControllers[role],
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      suffixText: 'cr',
-                                      suffixStyle: const TextStyle(fontSize: 11),
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _percentControllers[role],
+                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                          onChanged: (_) => _onPercentChanged(role),
+                                          decoration: const InputDecoration(
+                                            suffixText: '%',
+                                            suffixStyle: TextStyle(fontSize: 11),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _allocationControllers[role],
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (_) => _onAllocationChanged(role),
+                                          decoration: const InputDecoration(
+                                            suffixText: 'cr',
+                                            suffixStyle: TextStyle(fontSize: 11),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

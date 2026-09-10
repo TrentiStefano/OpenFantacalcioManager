@@ -120,7 +120,7 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
               children: [
                 // Overall Budget Remaining
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark ? AppColors.darkCard : Colors.white,
                     borderRadius: BorderRadius.circular(8),
@@ -145,7 +145,7 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                           Text(
                             '${summary.remainingBudget} / ${summary.initialBudget} cr',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: AppColors.primary,
                             ),
@@ -155,7 +155,72 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 10),
+
+                // Total Strategy Balance (+/-)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: summary.totalOverUnderBudget > 0
+                        ? AppColors.accent.withValues(alpha: 0.12)
+                        : (summary.totalOverUnderBudget < 0
+                            ? Colors.red.withValues(alpha: 0.12)
+                            : (isDark ? AppColors.darkCard : Colors.white)),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: summary.totalOverUnderBudget > 0
+                          ? AppColors.accent.withValues(alpha: 0.4)
+                          : (summary.totalOverUnderBudget < 0
+                              ? Colors.red.withValues(alpha: 0.4)
+                              : Colors.grey.withValues(alpha: 0.3)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        summary.totalOverUnderBudget > 0
+                            ? Icons.savings_outlined
+                            : (summary.totalOverUnderBudget < 0
+                                ? Icons.warning_amber_rounded
+                                : Icons.insights),
+                        color: summary.totalOverUnderBudget > 0
+                            ? AppColors.accent
+                            : (summary.totalOverUnderBudget < 0 ? Colors.red : Colors.grey),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            summary.totalOverUnderBudget > 0
+                                ? 'EXTRA BUDGET'
+                                : (summary.totalOverUnderBudget < 0 ? 'SFORAMENTO' : 'BILANCIO STRAT.'),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: summary.totalOverUnderBudget > 0
+                                  ? AppColors.accent
+                                  : (summary.totalOverUnderBudget < 0 ? Colors.red : Colors.grey),
+                            ),
+                          ),
+                          Text(
+                            summary.formattedTotalOverUnder,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: summary.totalOverUnderBudget > 0
+                                  ? AppColors.accent
+                                  : (summary.totalOverUnderBudget < 0 ? Colors.red : (isDark ? Colors.white : Colors.black87)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
 
                 // Slots by Role Badges & Meters
                 Expanded(
@@ -165,8 +230,9 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                       final rSum = summary.roleSummaries[role];
                       final roleColor = AppColors.getRoleColor(role);
                       final remainingSlots = rSum?.remainingSlots ?? 0;
-                      final totalSlots = rSum?.totalSlots ?? 0;
                       final remainingCredits = rSum?.remainingBudget ?? 0;
+                      final isCompleted = rSum?.isCompleted ?? false;
+                      final delta = rSum?.roleDelta ?? 0;
 
                       return Expanded(
                         child: Container(
@@ -175,7 +241,11 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? AppColors.darkCard : Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: isCompleted
+                                  ? AppColors.accent.withValues(alpha: 0.4)
+                                  : roleColor.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,13 +253,33 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    role,
-                                    style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        role,
+                                        style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                      ),
+                                      if (isCompleted && delta != 0) ...[
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          rSum!.formattedDelta,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: delta > 0 ? AppColors.accent : Colors.red,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   Text(
-                                    '$remainingSlots slot liberi',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                    isCompleted ? 'Completo' : '$remainingSlots liberi',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isCompleted ? FontWeight.bold : FontWeight.w600,
+                                      color: isCompleted ? AppColors.accent : null,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -199,13 +289,15 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                                 child: LinearProgressIndicator(
                                   value: rSum?.slotProgress ?? 0.0,
                                   backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                                  valueColor: AlwaysStoppedAnimation<Color>(roleColor),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isCompleted ? AppColors.accent : roleColor,
+                                  ),
                                   minHeight: 4,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Budget res: $remainingCredits cr',
+                                'Residuo: $remainingCredits cr',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: remainingCredits < 0 ? Colors.red : (isDark ? Colors.grey[400] : Colors.grey[700]),
@@ -338,7 +430,7 @@ class _LiveAuctionScreenState extends ConsumerState<LiveAuctionScreen> {
                         Expanded(
                           child: ListView.separated(
                             itemCount: poolPlayers.length,
-                            separatorBuilder: (_, __) => Divider(
+                            separatorBuilder: (_, _) => Divider(
                               height: 1,
                               color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                             ),

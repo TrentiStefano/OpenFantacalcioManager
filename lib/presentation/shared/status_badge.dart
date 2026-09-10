@@ -27,7 +27,7 @@ class StatusBadge extends StatelessWidget {
         bg = AppColors.statusMine.withValues(alpha: 0.15);
         fg = AppColors.statusMine;
         text = purchasePrice != null
-            ? '${l10n.translate('status_mine')} (${purchasePrice} cr)'
+            ? '${l10n.translate('status_mine')} ($purchasePrice cr)'
             : l10n.translate('status_mine');
         icon = Icons.check_circle_outline;
         break;

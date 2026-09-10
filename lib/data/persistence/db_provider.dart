@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DbProvider {
@@ -29,7 +28,7 @@ class DbProvider {
 
     return await openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE players (
@@ -64,9 +63,19 @@ class DbProvider {
             is_mantra INTEGER DEFAULT 0,
             slots_json TEXT,
             allocations_json TEXT,
+            target_percentages_json TEXT,
             tiers_json TEXT
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          try {
+            await db.execute('ALTER TABLE settings ADD COLUMN target_percentages_json TEXT;');
+          } catch (_) {
+            // Column might already exist
+          }
+        }
       },
     );
   }

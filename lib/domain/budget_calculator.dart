@@ -38,7 +38,9 @@ class BudgetCalculator {
     for (final role in ['P', 'D', 'C', 'A']) {
       final totalSlots = settings.slots[role] ?? 0;
       final acquiredCount = countByRole[role] ?? 0;
-      final allocatedBudget = settings.budgetAllocations[role] ?? 0;
+      final targetPercentage = settings.targetPercentages[role] ?? 0.0;
+      final allocatedBudget = settings.budgetAllocations[role] ?? 
+          ((targetPercentage / 100.0) * settings.initialBudget).round();
       final spentBudget = spentByRole[role] ?? 0;
 
       roleSummaries[role] = RoleSummary(
@@ -47,6 +49,7 @@ class BudgetCalculator {
         acquiredCount: acquiredCount,
         allocatedBudget: allocatedBudget,
         spentBudget: spentBudget,
+        targetPercentage: targetPercentage,
       );
     }
 

@@ -129,6 +129,19 @@ class AppLocalizations {
       'theme_light': 'Chiaro',
       'theme_dark': 'Scuro',
       'theme_system': 'Sistema',
+
+      // Strategy Feature
+      'strategy_target_title': 'Strategia Budget per Ruolo',
+      'strategy_target_subtitle': 'Imposta la percentuale del budget iniziale per ruolo (Base: P 6%, D 16%, C 26%, A 52%)',
+      'reset_default_strategy': 'Reimposta Base (6% - 16% - 26% - 52%)',
+      'strategy_balance': 'Bilancio Strategia',
+      'under_budget_savings': 'Sotto-budget (Risparmio)',
+      'over_budget_overrun': 'Sopra-budget (Sforamento)',
+      'extra_credits_available': 'Crediti extra da spendere per altri ruoli',
+      'credits_left_to_spend': 'Crediti da spendere',
+      'strategy_bar_title': 'Strategia Live',
+      'delta': 'Delta',
+      'percent_total': 'Totale %',
     },
     'en': {
       'app_title': 'Open Fantacalcio Manager',
@@ -232,6 +245,19 @@ class AppLocalizations {
       'theme_light': 'Light',
       'theme_dark': 'Dark',
       'theme_system': 'System',
+
+      // Strategy Feature
+      'strategy_target_title': 'Role Budget Strategy',
+      'strategy_target_subtitle': 'Set the percentage of initial budget per role (Defaults: P 6%, D 16%, C 26%, A 52%)',
+      'reset_default_strategy': 'Reset to Defaults (6% - 16% - 26% - 52%)',
+      'strategy_balance': 'Strategy Balance',
+      'under_budget_savings': 'Under Budget (Savings)',
+      'over_budget_overrun': 'Over Budget (Overrun)',
+      'extra_credits_available': 'Extra credits available to spend on other roles',
+      'credits_left_to_spend': 'Credits left to spend',
+      'strategy_bar_title': 'Live Strategy',
+      'delta': 'Delta',
+      'percent_total': 'Total %',
     },
   };
 

@@ -59,4 +59,18 @@ class SettingsNotifier extends StateNotifier<AsyncValue<LeagueSettings>> {
     final updated = current.copyWith(budgetAllocations: allocations);
     await updateSettings(updated);
   }
+
+  Future<void> updateTargetPercentages(Map<String, double> percentages) async {
+    final current = state.value ?? const LeagueSettings();
+    final allocations = LeagueSettings.calculateAllocations(current.initialBudget, percentages);
+    final updated = current.copyWith(
+      targetPercentages: percentages,
+      budgetAllocations: allocations,
+    );
+    await updateSettings(updated);
+  }
+
+  Future<void> resetStrategyToDefault() async {
+    await updateTargetPercentages(LeagueSettings.defaultTargetPercentages);
+  }
 }

@@ -101,20 +101,18 @@ class MyTeamScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // Top 4 Stat Cards
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
+          // Top Stat Cards (5 Cards)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 900;
+              final cards = [
+                StatCard(
                   title: l10n.translate('initial_budget'),
                   value: '${summary.initialBudget} cr',
                   icon: Icons.account_balance,
                   color: AppColors.primary,
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: StatCard(
+                StatCard(
                   title: l10n.translate('total_spent'),
                   value: '${summary.totalSpent} cr',
                   subtitle: '${(summary.overallBudgetProgress * 100).toStringAsFixed(1)}% del budget',
@@ -123,22 +121,27 @@ class MyTeamScreen extends ConsumerWidget {
                   progress: summary.overallBudgetProgress,
                   progressColor: Colors.orange,
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: StatCard(
+                StatCard(
                   title: l10n.translate('remaining_budget'),
                   value: '${summary.remainingBudget} cr',
-                  subtitle: 'Crediti disponibili',
-                  icon: Icons.savings_outlined,
+                  subtitle: 'Portafoglio rimanente',
+                  icon: Icons.account_balance_wallet_outlined,
                   color: summary.remainingBudget < 0 ? Colors.red : AppColors.accent,
                   progress: 1.0 - summary.overallBudgetProgress,
                   progressColor: summary.remainingBudget < 0 ? Colors.red : AppColors.accent,
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: StatCard(
+                StatCard(
+                  title: l10n.translate('strategy_balance'),
+                  value: summary.formattedTotalOverUnder,
+                  subtitle: summary.totalOverUnderBudget > 0
+                      ? 'Extra da riutilizzare'
+                      : (summary.totalOverUnderBudget < 0 ? 'Sforamento budget' : 'In target'),
+                  icon: summary.totalOverUnderBudget >= 0 ? Icons.savings_outlined : Icons.warning_amber_rounded,
+                  color: summary.totalOverUnderBudget > 0
+                      ? AppColors.accent
+                      : (summary.totalOverUnderBudget < 0 ? Colors.red : Colors.blueGrey),
+                ),
+                StatCard(
                   title: l10n.translate('remaining_slots'),
                   value: '${summary.remainingSlots} / ${summary.totalSlots}',
                   subtitle: '${summary.totalAcquired} giocatori acquistati',
@@ -146,8 +149,25 @@ class MyTeamScreen extends ConsumerWidget {
                   color: AppColors.primaryLight,
                   progress: summary.overallSlotProgress,
                 ),
-              ),
-            ],
+              ];
+
+              if (isNarrow) {
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: cards.map((c) => SizedBox(width: (constraints.maxWidth - 24) / 2, child: c)).toList(),
+                );
+              }
+
+              return Row(
+                children: [
+                  for (int i = 0; i < cards.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    Expanded(child: cards[i]),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
 
@@ -158,9 +178,53 @@ class MyTeamScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Riepilogo per Ruolo (Budget & Slot)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Riepilogo per Ruolo (Strategia, Budget & Slot)',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: summary.totalOverUnderBudget > 0
+                              ? AppColors.accent.withValues(alpha: 0.12)
+                              : (summary.totalOverUnderBudget < 0
+                                  ? Colors.red.withValues(alpha: 0.12)
+                                  : Colors.grey.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: summary.totalOverUnderBudget > 0
+                                ? AppColors.accent.withValues(alpha: 0.3)
+                                : (summary.totalOverUnderBudget < 0 ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2)),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              summary.totalOverUnderBudget >= 0 ? Icons.savings_outlined : Icons.warning_amber_rounded,
+                              size: 16,
+                              color: summary.totalOverUnderBudget > 0
+                                  ? AppColors.accent
+                                  : (summary.totalOverUnderBudget < 0 ? Colors.red : Colors.grey),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Bilancio Extra: ${summary.formattedTotalOverUnder}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: summary.totalOverUnderBudget > 0
+                                    ? AppColors.accent
+                                    : (summary.totalOverUnderBudget < 0 ? Colors.red : Colors.grey),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Table(
@@ -172,13 +236,15 @@ class MyTeamScreen extends ConsumerWidget {
                     ),
                     columnWidths: const {
                       0: FlexColumnWidth(1.2),
-                      1: FlexColumnWidth(1),
-                      2: FlexColumnWidth(1),
-                      3: FlexColumnWidth(1),
-                      4: FlexColumnWidth(1.5),
-                      5: FlexColumnWidth(1.5),
-                      6: FlexColumnWidth(1.5),
-                      7: FlexColumnWidth(2),
+                      1: FlexColumnWidth(0.9),
+                      2: FlexColumnWidth(0.9),
+                      3: FlexColumnWidth(0.9),
+                      4: FlexColumnWidth(1.0),
+                      5: FlexColumnWidth(1.2),
+                      6: FlexColumnWidth(1.2),
+                      7: FlexColumnWidth(1.2),
+                      8: FlexColumnWidth(1.1),
+                      9: FlexColumnWidth(1.5),
                     },
                     children: [
                       // Header Row
@@ -188,12 +254,14 @@ class MyTeamScreen extends ConsumerWidget {
                         ),
                         children: const [
                           _TableCell('RUOLO', isHeader: true),
-                          _TableCell('SLOT TOT.', isHeader: true),
-                          _TableCell('ACQUISTATI', isHeader: true),
-                          _TableCell('RIMANENTI', isHeader: true),
+                          _TableCell('SLOT', isHeader: true),
+                          _TableCell('ACQ.', isHeader: true),
+                          _TableCell('RIM.', isHeader: true),
+                          _TableCell('% STRAT.', isHeader: true),
                           _TableCell('ALLOCATO', isHeader: true),
                           _TableCell('SPESO', isHeader: true),
                           _TableCell('RESIDUO', isHeader: true),
+                          _TableCell('DELTA', isHeader: true),
                           _TableCell('AVANZAMENTO', isHeader: true),
                         ],
                       ),
@@ -202,6 +270,8 @@ class MyTeamScreen extends ConsumerWidget {
                         final rSum = summary.roleSummaries[role];
                         final roleColor = AppColors.getRoleColor(role);
                         final roleName = l10n.translate('role_$role');
+                        final isCompleted = rSum?.isCompleted ?? false;
+                        final delta = rSum?.roleDelta ?? 0;
 
                         return TableRow(
                           children: [
@@ -211,7 +281,13 @@ class MyTeamScreen extends ConsumerWidget {
                                 children: [
                                   RoleBadge(role: role),
                                   const SizedBox(width: 8),
-                                  Text(roleName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  Expanded(
+                                    child: Text(
+                                      roleName,
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -222,12 +298,20 @@ class MyTeamScreen extends ConsumerWidget {
                               color: rSum?.remainingSlots == 0 ? Colors.grey : AppColors.primary,
                               isBold: true,
                             ),
+                            _TableCell('${rSum?.targetPercentage.toStringAsFixed(0)}%'),
                             _TableCell('${rSum?.allocatedBudget ?? 0} cr'),
                             _TableCell('${rSum?.spentBudget ?? 0} cr'),
                             _TableCell(
                               '${rSum?.remainingBudget ?? 0} cr',
                               color: (rSum?.remainingBudget ?? 0) < 0 ? Colors.red : AppColors.accent,
                               isBold: true,
+                            ),
+                            _TableCell(
+                              isCompleted || delta != 0 ? rSum!.formattedDelta : '-',
+                              color: delta > 0
+                                  ? AppColors.accent
+                                  : (delta < 0 ? Colors.red : Colors.grey),
+                              isBold: delta != 0,
                             ),
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
@@ -236,7 +320,9 @@ class MyTeamScreen extends ConsumerWidget {
                                 child: LinearProgressIndicator(
                                   value: rSum?.slotProgress ?? 0.0,
                                   backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                                  valueColor: AlwaysStoppedAnimation<Color>(roleColor),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isCompleted ? AppColors.accent : roleColor,
+                                  ),
                                   minHeight: 8,
                                 ),
                               ),
@@ -289,7 +375,7 @@ class MyTeamScreen extends ConsumerWidget {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: minePlayers.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                       ),

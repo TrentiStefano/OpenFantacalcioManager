@@ -10,6 +10,7 @@ import '../screens/strategy/strategy_screen.dart';
 import '../screens/live_auction/live_auction_screen.dart';
 import '../screens/my_team/my_team_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../shared/strategy_bar.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -156,9 +157,18 @@ class _AppShellState extends ConsumerState<AppShell> {
                 const VerticalDivider(width: 1),
               ],
               Expanded(
-                child: IndexedStack(
-                  index: _selectedIndex,
-                  children: _screens,
+                child: Column(
+                  children: [
+                    StrategyBar(
+                      onOpenStrategy: () => setState(() => _selectedIndex = 2),
+                    ),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _selectedIndex,
+                        children: _screens,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

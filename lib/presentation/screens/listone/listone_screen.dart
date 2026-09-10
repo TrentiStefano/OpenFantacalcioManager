@@ -3,7 +3,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_tiers.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../data/models/player.dart';
 import '../../../data/models/league_settings.dart';
@@ -297,7 +296,7 @@ class ListoneScreen extends ConsumerWidget {
                   )
                 : ListView.separated(
                     itemCount: filteredPlayers.length,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       height: 1,
                       color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                     ),

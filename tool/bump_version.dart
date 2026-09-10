@@ -280,9 +280,9 @@ Future<void> _updateChangelog(SemVer version) async {
 
   final newEntry = buffer.toString();
   if (!existingContent.contains('## [${version.versionString}]')) {
-    final updated = '# Changelog\n\nAll notable changes to Open Fantacalcio Manager are documented here.\nFormat is based on [Keep a Changelog](https://keepachangelog.com/) and adheres to [Semantic Versioning](https://semver.org/).\n\n$newEntry' +
-        existingContent.replaceFirst(RegExp(r'^# Changelog\s*', multiLine: true), '');
-    changelogFile.writeAsStringSync(updated.trim() + '\n');
+    final rest = existingContent.replaceFirst(RegExp(r'^# Changelog\s*', multiLine: true), '');
+    final updated = '# Changelog\n\nAll notable changes to Open Fantacalcio Manager are documented here.\nFormat is based on [Keep a Changelog](https://keepachangelog.com/) and adheres to [Semantic Versioning](https://semver.org/).\n\n$newEntry$rest';
+    changelogFile.writeAsStringSync('${updated.trim()}\n');
     stdout.writeln('Updated CHANGELOG.md for v${version.versionString}');
   }
 }
